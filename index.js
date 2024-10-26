@@ -1,15 +1,13 @@
+
 const express = require("express")
 const axios = require("axios")
-const { Readable } = require("stream");
-
-const PORT = process.env.PORT || 5000
-const app = express()
-
 const { PinataSDK } = require("pinata-web3")
 const fs = require("fs");
 const FormData = require('form-data');
+const { Readable } = require('stream');
 const multer  = require('multer')
-const upload = multer({ dest: 'uploads/' });
+const storage = multer.memoryStorage()
+const upload = multer({ storage: storage })
 
 const cors=require("cors");
 const corsOptions ={
@@ -21,46 +19,74 @@ app.use(cors(corsOptions))
 require("dotenv").config()
 
 const pinata = new PinataSDK({
-  pinataJwt: '..',
-  pinataGateway: ''
+  pinataJwt: '',
+  pinataGateway: 'chocolate-large-rabbit-995.mypinata.cloud'
 })
+
+const PORT = process.env.PORT || 5000
+const app = express()
 
 app.get("/", (req, res) => {
   res.send("Welcome to your App!")
 })
 
-// File Upload Endpoint
-// I can't get this file upload working. 
-app.post('/upload', function(req, res) {
-  const pinata_key = "";
+// Retrieve list of pinned files on gateway
+app.get("/list", async (req, res) => {
+	const pinata_key = "";
 	const pinata_secret = "";
-	const url = `https://api.pinata.cloud/pinning/pinFileToIPFS`;
-
-	console.log(req)
-
-	const data = new FormData();    
-	data.append('file', req)
-
-    const pin = axios.post("https://api.pinata.cloud/pinning/pinFileToIPFS", data, {
-      maxBodyLength: "Infinity",
-      headers: {
-          'Content-Type': `multipart/form-data; boundary=${data._boundary}`,
-          pinata_api_key: pinata_key,
-          pinata_secret_api_key: pinata_secret
-      }
+	
+    	const response = await axios({
+        	method: "get",
+        	url: "https://api.pinata.cloud/data/pinList?status=pinned",
+        	headers: {
+            	'pinata_api_key': pinata_key,
+            	'pinata_secret_api_key': pinata_secret,
+        },
     });
+	res.json(response.data)
+});
 
-    console.log(pin.data);
-	res.send(pin)
+// File Upload Endpoint
+app.post('/upload', upload.single('file'), async (req, res) => {
+	const url = `https://api.pinata.cloud/pinning/pinFileToIPFS`;
+    	const pinata_key = "";
+	const pinata_secret = "";
+	const buffer = Buffer.from(req.file.buffer);
+    	const stream = Readable.from(buffer);
+    	const filename = `an-awesome-file.pdf`;
+    	stream.path = filename;
+
+    	const formData = new FormData();
+    	formData.append("file", stream);
+
+	const ax = await axios.post(url,
+        	formData,
+        	{
+            	headers: {
+                	'Content-Type': `multipart/form-data; boundary= ${formData._boundary}`,
+                	'pinata_api_key': "",
+                	'pinata_secret_api_key': "",
+            	}
+        	}
+    	).then( async function (response) {
+        	console.log("Success: ", response.data.IpfsHash);
+			return response.data.IpfsHash;
+
+    	}).catch(function (error) {
+        	console.log("Fail! ", error.response.data);
+    	});
+
+	res.json(ax);
+	
 });
 
 // JSON Upload Endpoint
-app.post('/json_upload', function(req, res) {
+app.post('/json_upload', async (req, res) => {
 	const url = `https://api.pinata.cloud/pinning/pinJSONToIPFS`;
-  const pinata_key = "";
+    	const pinata_key = "";
 	const pinata_secret = "";
-
-    const ax = axios 
+	
+    	const ax = await axios 
         .post(url, req, {
             headers: {
                 pinata_api_key: pinata_key,
@@ -68,18 +94,19 @@ app.post('/json_upload', function(req, res) {
             }
         })
         .then(function (response) {
-            console.log("json uploaded", response.data.IpfsHash)
-            return "" + response.data.IpfsHash
+		return response.data.IpfsHash
         })
-		.catch(function (error) {
+	.catch(function (error) {
             console.log(error)
-		})
-
-	res.send(ax);
+		});
+	
+	console.log(ax)
+	res.json(ax);
 
 });
 
 app.listen(PORT, function () {
   console.log(`Express server listening on port ${PORT}`)
 })
+
 
