@@ -1,13 +1,12 @@
-
-const express = require("express")
-const axios = require("axios")
+const { express } = require("express")
+const { axios } = require("axios")
 const { PinataSDK } = require("pinata-web3")
-const fs = require("fs");
-const FormData = require('form-data');
+const { fs } = require("fs");
+const { FormData } = require('form-data');
 const { Readable } = require('stream');
-const multer  = require('multer')
-const storage = multer.memoryStorage()
-const upload = multer({ storage: storage })
+const { multer }  = require('multer')
+const { storage } = multer.memoryStorage()
+const { upload } = multer({ storage: storage })
 
 const cors=require("cors");
 const corsOptions ={
@@ -41,8 +40,8 @@ app.get("/list", async (req, res) => {
         	headers: {
             	'pinata_api_key': pinata_key,
             	'pinata_secret_api_key': pinata_secret,
-        },
-    });
+        	},
+    	});
 	res.json(response.data)
 });
 
@@ -59,25 +58,20 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     	const formData = new FormData();
     	formData.append("file", stream);
 
-	const ax = await axios.post(url,
-        	formData,
-        	{
+	const ax = await axios
+	.post(url, formData, {
             	headers: {
                 	'Content-Type': `multipart/form-data; boundary= ${formData._boundary}`,
-                	'pinata_api_key': "",
-                	'pinata_secret_api_key': "",
-            	}
-        	}
-    	).then( async function (response) {
+                	'pinata_api_key': pinata_key,
+                	'pinata_secret_api_key': pinata_secret,
+            		}
+        }).then( async function (response) {
         	console.log("Success: ", response.data.IpfsHash);
-			return response.data.IpfsHash;
-
+		return response.data.IpfsHash;
     	}).catch(function (error) {
         	console.log("Fail! ", error.response.data);
     	});
-
 	res.json(ax);
-	
 });
 
 // JSON Upload Endpoint
@@ -97,12 +91,9 @@ app.post('/json_upload', async (req, res) => {
 		return response.data.IpfsHash
         })
 	.catch(function (error) {
-            console.log(error)
-		});
-	
-	console.log(ax)
+        	console.log(error)
+	});
 	res.json(ax);
-
 });
 
 app.listen(PORT, function () {
